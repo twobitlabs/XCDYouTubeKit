@@ -969,6 +969,7 @@
 		C2A3F2DC17F4827800AC1C3B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				PRODUCT_NAME = XCDYouTubeKit;
 			};
 			name = Debug;
@@ -976,6 +977,7 @@
 		C2A3F2DD17F4827800AC1C3B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				PRODUCT_NAME = XCDYouTubeKit;
 			};
 			name = Release;
@@ -1037,6 +1039,7 @@
 		C2D0CC5F191283A400DA8CD4 /* Code Coverage */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				PRODUCT_NAME = XCDYouTubeKit;
 			};
 			name = "Code Coverage";
