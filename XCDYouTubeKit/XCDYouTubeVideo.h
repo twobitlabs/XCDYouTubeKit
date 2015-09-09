@@ -2,7 +2,7 @@
 //  Copyright (c) 2013-2015 Cédric Luthi. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
+@import Foundation;
 
 /**
  *  The quality of YouTube videos. These values are used as keys in the `<[XCDYouTubeVideo streamURLs]>` property.

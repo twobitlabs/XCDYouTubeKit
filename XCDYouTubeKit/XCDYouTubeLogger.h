@@ -2,7 +2,7 @@
 //  Copyright (c) 2013-2015 Cédric Luthi. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
+@import Foundation;
 
 // From CocoaLumberjack's DDLog.h
 typedef NS_OPTIONS(NSUInteger, DDLogFlag) {
