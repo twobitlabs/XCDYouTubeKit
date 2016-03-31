@@ -1,3 +1,39 @@
+#### Version 2.5.1
+
+* Adaptation to YouTube API change. (#231)
+* Fixed compilation issue with Xcode 7.3 beta. (#228)
+* Properly annotated the `preferredVideoQualities` property as `null_resettable`.
+
+#### Version 2.5.0
+
+* Logging is fully configurable with the new `XCDYouTubeLogger` class.
+* Added `XCDYouTubeAllowedCountriesUserInfoKey` for better diagnosis of some unplayable (geoblocked) videos. (#216)
+
+#### Version 2.4.3
+
+* Fixed *XCDYouTubeKit iOS Framework* deployment target. (#223)
+
+#### Version 2.4.2
+
+* Restored iOS deployment target to 7.0. (#220)
+* Improved `-[XCDYouTubeVideo debugDescription]` by sorting streams by itag.
+* Improved logging performance.
+
+#### Version 2.4.1
+
+* Added the CFBundleVersion key in the Info.plist file for iTunes Connect validation. (#214)
+
+#### Version 2.4.0
+
+* Support for tvOS. (#182)
+* Replaced deprecated methods and classes: now using `NSURLSession` instead of `NSURLConnection` internally. (#190, #210)
+* Support for Objective-C generics where applicable.
+* The `XCDYouTubeVideoOperation` class has changed back from a synchronous to an asynchronous operation and can be started on the main thread.
+
+#### Version 2.3.3
+
+* Adaptation to YouTube API change. (#193, #194, #196, #197, #198, #202)
+
 #### Version 2.3.2
 
 * Adaptation to YouTube API change. (#186)

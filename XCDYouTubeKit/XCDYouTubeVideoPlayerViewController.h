@@ -1,11 +1,12 @@
 //
-//  Copyright (c) 2013-2015 Cédric Luthi. All rights reserved.
+//  Copyright (c) 2013-2016 Cédric Luthi. All rights reserved.
 //
 
 #if !__has_feature(nullability)
 #define NS_ASSUME_NONNULL_BEGIN
 #define NS_ASSUME_NONNULL_END
 #define nullable
+#define null_resettable
 #endif
 
 #import <MediaPlayer/MediaPlayer.h>
@@ -41,7 +42,10 @@ MP_EXTERN NSString *const XCDYouTubeVideoUserInfoKey;
  *
  *  Use the `<presentInView:>` method to play a YouTube video inline.
  */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 @interface XCDYouTubeVideoPlayerViewController : MPMoviePlayerViewController
+#pragma clang diagnostic pop
 
 /**
  *  ------------------
@@ -58,7 +62,7 @@ MP_EXTERN NSString *const XCDYouTubeVideoUserInfoKey;
  *
  *  @discussion You can pass a nil *videoIdentifier* (or use the standard `init` method instead) and set the `<videoIdentifier>` property later.
  */
-- (instancetype) initWithVideoIdentifier:(nullable NSString *)videoIdentifier __attribute__((objc_designated_initializer));
+- (instancetype) initWithVideoIdentifier:(nullable NSString *)videoIdentifier NS_DESIGNATED_INITIALIZER;
 
 /**
  *  ------------------------------------
@@ -86,7 +90,7 @@ MP_EXTERN NSString *const XCDYouTubeVideoUserInfoKey;
  *
  *  @see XCDYouTubeVideoQuality
  */
-@property (nonatomic, copy) NSArray *preferredVideoQualities;
+@property (nonatomic, copy, null_resettable) NSArray *preferredVideoQualities;
 
 /**
  *  ------------------------

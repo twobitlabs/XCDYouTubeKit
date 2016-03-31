@@ -1,5 +1,5 @@
 //
-//  Copyright (c) 2013-2015 Cédric Luthi. All rights reserved.
+//  Copyright (c) 2013-2016 Cédric Luthi. All rights reserved.
 //
 
 #import "XCDYouTubeVideo+Private.h"
@@ -9,10 +9,11 @@
 #import <objc/runtime.h>
 
 NSString *const XCDYouTubeVideoErrorDomain = @"XCDYouTubeVideoErrorDomain";
+NSString *const XCDYouTubeAllowedCountriesUserInfoKey = @"AllowedCountries";
 NSString *const XCDYouTubeNoStreamVideoUserInfoKey = @"NoStreamVideo";
 NSString *const XCDYouTubeVideoQualityHTTPLiveStreaming = @"HTTPLiveStreaming";
 
-NSDictionary *XCDDictionaryWithQueryString(NSString *string, NSStringEncoding encoding)
+NSDictionary *XCDDictionaryWithQueryString(NSString *string)
 {
 	NSMutableDictionary *dictionary = [NSMutableDictionary new];
 	NSArray *fields = [string componentsSeparatedByString:@"&"];
@@ -22,7 +23,7 @@ NSDictionary *XCDDictionaryWithQueryString(NSString *string, NSStringEncoding en
 		if (pair.count == 2)
 		{
 			NSString *key = pair[0];
-			NSString *value = [pair[1] stringByReplacingPercentEscapesUsingEncoding:encoding];
+			NSString *value = [pair[1] stringByRemovingPercentEncoding];
 			value = [value stringByReplacingOccurrencesOfString:@"+" withString:@" "];
 			dictionary[key] = value;
 		}
@@ -30,12 +31,7 @@ NSDictionary *XCDDictionaryWithQueryString(NSString *string, NSStringEncoding en
 	return [dictionary copy];
 }
 
-static NSString *XCDURLEncodedStringUsingEncoding(NSString *string, NSStringEncoding encoding)
-{
-	return CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)string, NULL, CFSTR("!*'();:@&=+$,/?%#[]"), CFStringConvertNSStringEncodingToEncoding(encoding)));
-}
-
-NSString *XCDQueryStringWithDictionary(NSDictionary *dictionary, NSStringEncoding encoding)
+NSString *XCDQueryStringWithDictionary(NSDictionary *dictionary)
 {
 	NSArray *keys = [dictionary.allKeys filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
 		return [evaluatedObject isKindOfClass:[NSString class]];
@@ -47,18 +43,33 @@ NSString *XCDQueryStringWithDictionary(NSDictionary *dictionary, NSStringEncodin
 		if (query.length > 0)
 			[query appendString:@"&"];
 		
-		[query appendString:XCDURLEncodedStringUsingEncoding(key, encoding)];
-		[query appendString:@"="];
-		[query appendString:XCDURLEncodedStringUsingEncoding([dictionary[key] description], encoding)];
+		[query appendFormat:@"%@=%@", key, [dictionary[key] description]];
 	}
-	return [query copy];
+	
+	return [query stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+}
+
+static NSString *SortedDictionaryDescription(NSDictionary *dictionary)
+{
+	NSArray *sortedKeys = [dictionary.allKeys sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+		return [[obj1 description] compare:[obj2 description] options:NSNumericSearch];
+	}];
+	
+	NSMutableString *description = [[NSMutableString alloc] initWithString:@"{\n"];
+	for (id key in sortedKeys)
+	{
+		[description appendFormat:@"\t%@ \u2192 %@\n", key, dictionary[key]];
+	}
+	[description appendString:@"}"];
+	
+	return [description copy];
 }
 
 @implementation XCDYouTubeVideo
 
 static NSDate * ExpirationDate(NSURL *streamURL)
 {
-	NSDictionary *query = XCDDictionaryWithQueryString(streamURL.query, NSUTF8StringEncoding);
+	NSDictionary *query = XCDDictionaryWithQueryString(streamURL.query);
 	NSTimeInterval expire = [query[@"expire"] doubleValue];
 	return expire > 0 ? [NSDate dateWithTimeIntervalSince1970:expire] : nil;
 }
@@ -66,7 +77,7 @@ static NSDate * ExpirationDate(NSURL *streamURL)
 - (instancetype) initWithIdentifier:(NSString *)identifier info:(NSDictionary *)info playerScript:(XCDYouTubePlayerScript *)playerScript response:(NSURLResponse *)response error:(NSError * __autoreleasing *)error
 {
 	if (!(self = [super init]))
-		return nil;
+		return nil; // LCOV_EXCL_LINE
 	
 	_identifier = identifier;
 
@@ -99,7 +110,7 @@ static NSDate * ExpirationDate(NSURL *streamURL)
 		
 		for (NSString *streamQuery in streamQueries)
 		{
-			NSDictionary *stream = XCDDictionaryWithQueryString(streamQuery, NSUTF8StringEncoding);
+			NSDictionary *stream = XCDDictionaryWithQueryString(streamQuery);
 			
 			NSString *scrambledSignature = stream[@"s"];
 			if (scrambledSignature && !playerScript)
@@ -123,7 +134,10 @@ static NSDate * ExpirationDate(NSURL *streamURL)
 					_expirationDate = ExpirationDate(streamURL);
 				
 				if (signature)
-					streamURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@&signature=%@", urlString, [signature stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]]];
+				{
+					NSString *escapedSignature = [signature stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+					streamURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@&signature=%@", urlString, escapedSignature]];
+				}
 				
 				streamURLs[@(itag.integerValue)] = streamURL;
 			}
@@ -196,9 +210,12 @@ static NSDate * ExpirationDate(NSURL *streamURL)
 
 - (NSString *) debugDescription
 {
-	NSString *duration = [[NSDateComponentsFormatter new] stringFromTimeInterval:self.duration] ?: [NSString stringWithFormat:@"%@ seconds", @(self.duration)];
+	NSDateComponentsFormatter *dateComponentsFormatter = [NSDateComponentsFormatter new];
+	dateComponentsFormatter.unitsStyle = NSDateComponentsFormatterUnitsStyleAbbreviated;
+	NSString *duration = [dateComponentsFormatter stringFromTimeInterval:self.duration] ?: [NSString stringWithFormat:@"%@ seconds", @(self.duration)];
 	NSString *thumbnailDescription = [NSString stringWithFormat:@"Small  thumbnail: %@\nMedium thumbnail: %@\nLarge  thumbnail: %@", self.smallThumbnailURL, self.mediumThumbnailURL, self.largeThumbnailURL];
-	return [NSString stringWithFormat:@"<%@: %p> %@\nDuration: %@\nExpiration date: %@\n%@\nVideo Streams: %@", self.class, self, self.description, duration, self.expirationDate, thumbnailDescription, self.streamURLs];
+	NSString *streamsDescription = SortedDictionaryDescription(self.streamURLs);
+	return [NSString stringWithFormat:@"<%@: %p> %@\nDuration: %@\nExpiration date: %@\n%@\nStreams: %@", self.class, self, self.description, duration, self.expirationDate, thumbnailDescription, streamsDescription];
 }
 
 #pragma mark - NSCopying

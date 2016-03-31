@@ -1,12 +1,12 @@
 //
-//  Copyright (c) 2013-2015 Cédric Luthi. All rights reserved.
+//  Copyright (c) 2013-2016 Cédric Luthi. All rights reserved.
 //
 
 #import "XCDYouTubePlayerScript.h"
 
 #import <JavaScriptCore/JavaScriptCore.h>
 
-#import "XCDYouTubeLogger.h"
+#import "XCDYouTubeLogger+Private.h"
 
 @interface XCDYouTubePlayerScript ()
 @property (nonatomic, strong) JSContext *context;
@@ -18,16 +18,15 @@
 - (instancetype) initWithString:(NSString *)string
 {
 	if (!(self = [super init]))
-		return nil;
+		return nil; // LCOV_EXCL_LINE
 	
 	NSString *script = [string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-	XCDYouTubeLogTrace(@"%@", script);
-	static NSString *jsPrologue = @"(function()";
-	static NSString *jsEpilogue = @")();";
-	if ([script hasPrefix:jsPrologue] && [script hasSuffix:jsEpilogue])
-		script = [script substringWithRange:NSMakeRange(jsPrologue.length, script.length - (jsPrologue.length + jsEpilogue.length))];
+	NSRegularExpression *anonymousFunctionRegularExpression = [NSRegularExpression regularExpressionWithPattern:@"\\(function\\([^)]*\\)\\{(.*)\\}\\)\\([^)]*\\)" options:NSRegularExpressionDotMatchesLineSeparators error:NULL];
+	NSTextCheckingResult *anonymousFunctionResult = [anonymousFunctionRegularExpression firstMatchInString:script options:(NSMatchingOptions)0 range:NSMakeRange(0, script.length)];
+	if (anonymousFunctionResult.numberOfRanges > 1)
+		script = [script substringWithRange:[anonymousFunctionResult rangeAtIndex:1]];
 	else
-		XCDYouTubeLogWarning(@"Unexpected player script (not an anonymous function)");
+		XCDYouTubeLogWarning(@"Unexpected player script (no anonymous function found)");
 	
 	_context = [JSContext new];
 	_context.exceptionHandler = ^(JSContext *context, JSValue *exception) {
@@ -35,26 +34,29 @@
 	};
 	
 	NSDictionary *environment = @{
-		@"document": @{},
-		@"navigator": @{},
-		@"window": @{
-			@"location": @{
-				@"hash": @""
-			},
-			@"navigator": @{}
-		}
+		@"document": @{
+			@"documentElement": @{}
+		},
+		@"location": @{
+			@"hash": @""
+		},
+		@"navigator": @{
+			@"userAgent": @""
+		},
 	};
+	_context[@"window"] = @{};
 	for (NSString *propertyName in environment)
 	{
 		JSValue *value = [JSValue valueWithObject:environment[propertyName] inContext:_context];
 		_context[propertyName] = value;
+		_context[@"window"][propertyName] = value;
 	}
 	
 	[_context evaluateScript:script];
 	
 	NSRegularExpression *signatureRegularExpression = [NSRegularExpression regularExpressionWithPattern:@"[\"']signature[\"']\\s*,\\s*([^\\(]+)" options:NSRegularExpressionCaseInsensitive error:NULL];
-	NSTextCheckingResult *result = [signatureRegularExpression firstMatchInString:script options:(NSMatchingOptions)0 range:NSMakeRange(0, script.length)];
-	NSString *signatureFunctionName = result.numberOfRanges > 1 ? [script substringWithRange:[result rangeAtIndex:1]] : nil;
+	NSTextCheckingResult *signatureResult = [signatureRegularExpression firstMatchInString:script options:(NSMatchingOptions)0 range:NSMakeRange(0, script.length)];
+	NSString *signatureFunctionName = signatureResult.numberOfRanges > 1 ? [script substringWithRange:[signatureResult rangeAtIndex:1]] : nil;
 	
 	if (signatureFunctionName)
 		_signatureFunction = self.context[signatureFunctionName];
