@@ -1,3 +1,11 @@
+#### Version 2.7.7
+
+* Add another player script regular expression (#438)
+
+#### Version 2.7.6
+
+* Adaptation to YouTube API change. (#437)
+
 #### Version 2.7.5
 
 * Adaptation to YouTube API change. (#433)
